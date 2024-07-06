@@ -1,8 +1,16 @@
 const express = require("express");
 const router = express.Router();
-const { getCollection } = require("../controller/userController");
+const {
+  getCollection,
+  sendVerificationMail,
+  getUserData,
+  verifyOTP,
+} = require("../controller/userController");
 
-// GET request to fetch entire collection
+router.post("/send-otp", sendVerificationMail);
+router.post("/verify-otp", verifyOTP);
+router.post("/get-users", getUserData);
 router.get("/collection", getCollection);
+router.get("/mail", sendVerificationMail);
 
 module.exports = router;
