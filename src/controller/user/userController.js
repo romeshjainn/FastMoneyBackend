@@ -1,9 +1,10 @@
 const { collection, getDocs } = require("firebase/firestore");
 const { sendEmail } = require("./mail");
-const { db } = require("../config/firebase");
+const { db } = require("../../config/firebase");
 const ejs = require("ejs");
 const path = require("path");
 
+// getting the html template form .ejs file
 async function getEmailTemp(otp) {
   try {
     const htmlContent = await ejs.renderFile(
@@ -17,22 +18,8 @@ async function getEmailTemp(otp) {
   }
 }
 
-// async function sendVerificationMail(req, res) {
-//   try {
-//     const { email } = req.body;
-//     console.log(email, "email");
-//     const otp = Math.floor(Math.random() * 90000) + 10000;
-//     const html = await getEmailTemp(otp);
-//     await sendEmail(email, "Verification Mail", "", html);
-//     res.status(200).json({ success: "Mail sent successfully", otp: otp });
-//   } catch (error) {
-//     console.error("Error sending mail: ", error);
-//     res.status(500).json({ error: "Failed to send verification mail" });
-//   }
-// }
-
+// email verification
 const otpExpirationTime = 60000; 
-
 let otpData = {}; 
 
 async function sendVerificationMail(req, res) {
@@ -40,24 +27,20 @@ async function sendVerificationMail(req, res) {
     const { email } = req.body;
     console.log(email, "email");
 
-    // Generate OTP
     const otp = Math.floor(Math.random() * 90000) + 10000;
     const html = await getEmailTemp(otp);
     await sendEmail(email, "Verification Mail", "", html);
     console.log(otp);
-    // Store OTP and its creation time
     otpData = {
       otp: otp,
       createdAt: Date.now(),
     };
 
     console.log(otp, "otp verified");
-    // Send response with success message and OTP
     res.status(200).json({ success: "Mail sent successfully", otp: otp });
 
-    // Schedule OTP expiration check
     setTimeout(() => {
-      otpData = {}; // Clear OTP data after expiration
+      otpData = {};
     }, otpExpirationTime);
   } catch (error) {
     console.error("Error sending mail: ", error);
@@ -69,7 +52,6 @@ async function verifyOTP(req, res) {
   try {
     const { otp } = req.query;
     console.log(otp);
-    // Check if OTP data exists and is within the expiration time
     if (
       otpData &&
       Number(otpData.otp) === Number(otp) &&
@@ -87,6 +69,7 @@ async function verifyOTP(req, res) {
   }
 }
 
+// getting data from db
 async function getCollection(req, res) {
   try {
     const workRecord = collection(db, "users");

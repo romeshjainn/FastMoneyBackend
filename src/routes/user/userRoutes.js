@@ -5,7 +5,7 @@ const {
   sendVerificationMail,
   getUserData,
   verifyOTP,
-} = require("../controller/userController");
+} = require("../../controller/user/userController");
 
 router.post("/send-otp", sendVerificationMail);
 router.post("/verify-otp", verifyOTP);
