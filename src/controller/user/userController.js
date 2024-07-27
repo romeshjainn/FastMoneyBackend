@@ -274,30 +274,30 @@ export const userDetails = async (req, res) => {
       return res.status(400).send({ error: "User ID is required" });
     }
 
-    const workRecord = collection(db, "users");
-    const q = query(workRecord, where("id", "==", id));
-    const workSnapshot = await getDocs(q);
+    const { data } = await getFirebaseData();
 
-    if (workSnapshot.empty) {
+    const user = data.filter((user) => user.userDetails.id === id);
+
+    if (!user.length) {
       return res.status(404).send({ error: "User not found" });
     }
 
-    const userRecord = workSnapshot.docs[0].data();
-
-    const { name, number, email, pan, aadhar, emp_type, annual_income } =
-      userRecord;
+    // const userRecord = workSnapshot.docs[0].data();
+    console.log(user);
+    console.log(user?.userDetails);
 
     const userDetails = {
-      name,
-      number,
-      email,
-      pan,
-      aadhar,
-      emp_type,
-      annual_income,
+      name: user?.[0]?.userDetails?.name || "",
+      number: user?.[0]?.userDetails?.number || "",
+      email: user?.[0]?.userDetails?.email || "",
+      pan: user?.[0]?.userDetails?.pan || "",
+      aadhar: user?.[0]?.userDetails?.aadhar || "",
+      emp_type: user?.[0]?.userDetails?.emp_type || "",
+      annual_income: user?.[0]?.userDetails?.annual_income || "",
     };
 
-    res.send({ userDetails });
+    res.send(userDetails);
+    // res.send({ user });
   } catch (error) {
     console.log(error);
     res.status(500).send({ error: "An error occurred" });
@@ -539,6 +539,12 @@ export const createUser = async (req, res) => {
       (user) => String(user.userDetails.number) === String(number)
     );
 
+    // if (userExist) {
+    //   return res
+    //     .status(500)
+    //     .send({ userExist: true, navigationPath: "/homepage" });
+    // }
+
     let referrerDetails = null;
     if (ref) {
       referrerDetails = allUsers.find(
@@ -553,9 +559,12 @@ export const createUser = async (req, res) => {
     const formattedTime = format(now, "hh:mm a");
 
     if (userExist.length > 0) {
-      return res
-        .status(400)
-        .send({ Error: "User Exist", length: userExist.length });
+      return res.status(400).send({
+        userExist: true,
+        navigationPath: "/homepage",
+        message: "User Exist",
+        token: userExist[0].userDetails.id,
+      });
     } else {
       const updatedUserDataSchema = {
         ...userSchema,
@@ -594,8 +603,18 @@ export const createUser = async (req, res) => {
         });
       }
 
-      console.log(updatedUserDataSchema, "updatedUserDataSchema");
-      res.json(updatedUserDataSchema);
+      res.json({
+        userExist: false,
+        navigationPath: "/signup",
+        message: "User Created",
+        token: number,
+      });
+      // res.json({
+      //   userExist: false,
+      //   updatedUserDataSchema,
+      //   docRef,
+      //   navigationPath: "/signup",
+      // });
     }
   } catch (error) {
     console.error(error, "error");
@@ -633,5 +652,47 @@ export const handleUserSignup = async (req, res) => {
   } catch (error) {
     console.error("Error updating user:", error);
     res.status(500).send("Server Error");
+  }
+};
+
+export const sendMoneyPeopleSuggestions = async (req, res) => {
+  try {
+    const { name } = req.body;
+
+    if (!name) {
+      return res.status(400).json({ error: "Name parameter is required" });
+    }
+
+    const allUsersData = await getFirebaseData();
+    const { data } = allUsersData;
+
+    const suggestions = data
+      .map((item) => {
+        return item.transactionHistory.filter((transaction) => {
+          return (
+            (transaction.toName &&
+              transaction.toName.toLowerCase().includes(name.toLowerCase())) ||
+            (transaction.toNumber &&
+              transaction.toNumber.toLowerCase().includes(name.toLowerCase()))
+          );
+        });
+      })
+      .flat();
+
+    let details = [];
+
+    if (suggestions.length) {
+      details = suggestions.map((item) => {
+        return {
+          name: item.toName,
+          number: item.toNumber,
+        };
+      });
+    }
+
+    res.status(200).json(Success(details));
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ error: "Internal Server Error" });
   }
 };

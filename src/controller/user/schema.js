@@ -43,15 +43,6 @@ export const userSchema = {
       time_spent: "",
     },
   ],
-  transactionsRecord: [
-    {
-      person_id: "",
-      name: "",
-      transaction_amount: "",
-      transaction_date: "",
-      transaction_time: "",
-    },
-  ],
   bankDetails: [
     {
       bank_name: "",
@@ -86,12 +77,13 @@ export const userSchema = {
   ],
   transactionHistory: [
     {
-      to: "",
+      toName: "",
       transaction_id: "",
       transaction_amount: "",
       transaction_date: "",
       transaction_time: "",
       transaction_type: "",
+      toNumber: "",
       description: "",
     },
   ],
