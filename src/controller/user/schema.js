@@ -90,5 +90,6 @@ export const userSchema = {
   userSettings: {
     language_preference: "",
   },
+  contacts: [],
   triggerMessageTo: ["ADMIN", "SUPERADMIN"],
 };

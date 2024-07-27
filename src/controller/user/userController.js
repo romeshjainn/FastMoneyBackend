@@ -6,6 +6,7 @@ import {
   where,
   doc,
   updateDoc,
+  arrayUnion,
 } from "firebase/firestore";
 import { sendEmail } from "./mail.js";
 import { db } from "../../config/firebase.js";
@@ -16,6 +17,7 @@ import { validateTransactionData } from "../../utils/user/validateTransaction.js
 import { userSchema } from "./schema.js";
 import { Success, Error } from "../../utils/user/asyncResponse.js";
 import { format } from "date-fns";
+import axios from "axios";
 
 // getting the html template form .ejs file
 export async function getEmailTemp(otp) {
@@ -530,7 +532,7 @@ export const createUser = async (req, res) => {
 
     const allUsersSnapshot = await getDocs(collection(db, "users"));
     const allUsers = allUsersSnapshot.docs.map((doc) => doc.data());
-
+    console.log("running");
     if (!allUsers) {
       return res.status(500).send("Error fetching users");
     }
@@ -605,6 +607,7 @@ export const createUser = async (req, res) => {
 
       res.json({
         userExist: false,
+        // navigationPath: "/signup",
         navigationPath: "/signup",
         message: "User Created",
         token: number,
@@ -694,5 +697,35 @@ export const sendMoneyPeopleSuggestions = async (req, res) => {
   } catch (error) {
     console.error(error);
     res.status(500).json({ error: "Internal Server Error" });
+  }
+};
+
+export const saveContacts = async (req, res) => {
+  try {
+    const { number, contacts } = req.body;
+    if (!contacts || !number) {
+      return res.status(400).send({ Error: "Missing contacts or data" });
+    }
+
+    const usersCollection = collection(db, "users");
+    const q = query(usersCollection, where("userDetails.number", "==", number));
+    const querySnapshot = await getDocs(q);
+
+    if (querySnapshot.empty) {
+      return res.status(404).send({ Error: "User not found" });
+    }
+
+    const userDoc = querySnapshot.docs[0];
+    const userDocRef = doc(db, "users", userDoc.id);
+
+    // Update the contacts array
+    await updateDoc(userDocRef, {
+      contacts: arrayUnion(...contacts), // Spread the contacts array to add multiple items
+    });
+
+    res.status(200).send({ message: "Contacts updated successfully" });
+  } catch (error) {
+    console.error("Error adding contacts:", error);
+    res.status(500).send("Server Error");
   }
 };
