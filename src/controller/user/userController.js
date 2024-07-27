@@ -528,9 +528,9 @@ export const handleBalanceTransferToOthers = async (req, res) => {
 
 export const createUser = async (req, res) => {
   try {
-    const { number, ref } = req.body;
-    
-    console.log(number, ref);
+    const { number, ref } = await req.body;
+
+    console.log(number, "number", ref);
 
     const allUsersSnapshot = await getDocs(collection(db, "users"));
     const allUsers = allUsersSnapshot.docs.map((doc) => doc.data());
