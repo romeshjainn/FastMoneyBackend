@@ -87,6 +87,7 @@ export const userSchema = {
       description: "",
     },
   ],
+  aadharData: {},
   userSettings: {
     language_preference: "",
   },

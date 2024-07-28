@@ -720,14 +720,175 @@ export const saveContacts = async (req, res) => {
     const userDoc = querySnapshot.docs[0];
     const userDocRef = doc(db, "users", userDoc.id);
 
-    // Update the contacts array
     await updateDoc(userDocRef, {
-      contacts: arrayUnion(...contacts), // Spread the contacts array to add multiple items
+      contacts: arrayUnion(...contacts),
     });
 
     res.status(200).send({ message: "Contacts updated successfully" });
   } catch (error) {
     console.error("Error adding contacts:", error);
     res.status(500).send("Server Error");
+  }
+};
+
+export const saveCreditCard = async (req, res) => {
+  try {
+    const { cardDetails, number } = req.body;
+
+    // Validate input
+    if (
+      !cardDetails ||
+      !cardDetails.card_ ||
+      !cardDetails.card_type ||
+      !cardDetails.expiry_date ||
+      !cardDetails.cvv ||
+      !number
+    ) {
+      return res.status(400).send({ Error: "Missing card details or number" });
+    }
+
+    // Query to find user with the given card number
+    const usersCollection = collection(db, "users");
+    const q = query(usersCollection, where("userDetails.number", "==", number));
+    const querySnapshot = await getDocs(q);
+
+    if (querySnapshot.empty) {
+      return res.status(404).send({ Error: "User not found" });
+    }
+
+    const userDoc = querySnapshot.docs[0];
+    const userDocRef = doc(db, "users", userDoc.id);
+
+    // Update the user's document to add new card details
+    await updateDoc(userDocRef, {
+      creditCardDetails: arrayUnion(cardDetails), // Add the cardDetails object to the array
+    });
+
+    res.status(200).send({ message: "Card updated successfully" });
+  } catch (error) {
+    console.error("Error adding Card:", error);
+    res.status(500).send({ Error: "Server Error" });
+  }
+};
+
+export const saveBankDetails = async (req, res) => {
+  try {
+    const { bankDetails, number } = req.body;
+
+    if (!bankDetails || !number) {
+      return res.status(400).send({ Error: "Missing bank details or number" });
+    }
+
+    const usersCollection = collection(db, "users");
+    const q = query(usersCollection, where("userDetails.number", "==", number));
+    const querySnapshot = await getDocs(q);
+
+    if (querySnapshot.empty) {
+      return res.status(404).send({ Error: "User not found" });
+    }
+
+    const userDoc = querySnapshot.docs[0];
+    const userDocRef = doc(db, "users", userDoc.id);
+
+    await updateDoc(userDocRef, {
+      bankDetails: arrayUnion(bankDetails),
+    });
+
+    res.status(200).send({ message: "bank updated successfully" });
+  } catch (error) {
+    console.error("Error adding bank:", error);
+    res.status(500).send({ Error: "Server Error" });
+  }
+};
+
+export const sendAadharOtp = async (req, res) => {
+  const { aadharNumber } = req.body;
+  try {
+    const response = await fetch(
+      "https://api.quickekyc.com/api/v1/aadhaar-v2/generate-otp",
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          key: process.env.QuickKycKey,
+          id_number: aadharNumber,
+        }),
+      }
+    );
+
+    if (!response.ok) {
+      throw new Error(`HTTP error! Status: ${response.status}`);
+    }
+
+    const data = await response.json();
+    const requestId = data.request_id;
+    res.json({ request_id: requestId });
+  } catch (error) {
+    console.error("Error:", error);
+    res
+      .status(500)
+      .json({ error: "An error occurred while verifying the Aadhaar card" });
+  }
+};
+
+export const verifyAadharCard = async (req, res) => {
+  const { requestId, otp, number } = req.body;
+  try {
+    const response = await fetch(
+      "https://api.quickekyc.com/api/v1/aadhaar-v2/submit-otp",
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          key: process.env.QuickKycKey,
+          request_id: requestId,
+          otp: otp,
+        }),
+      }
+    );
+
+    if (!response.ok) {
+      throw new Error(`HTTP error! Status: ${response.status}`);
+    }
+
+    const data = await response.json();
+
+    if (data.data && data.data.full_name && data.data.full_name.length > 0) {
+      
+      const usersCollection = collection(db, "users");
+      const q = query(
+        usersCollection,
+        where("userDetails.number", "==", number)
+      );
+      const querySnapshot = await getDocs(q);
+
+      if (querySnapshot.empty) {
+        return res.status(404).send({ Error: "User not found" });
+      }
+
+      const userDoc = querySnapshot.docs[0];
+      const userDocRef = doc(db, "users", userDoc.id);
+
+      await updateDoc(userDocRef, {
+        aadharData: {
+          name: data.data.full_name,
+          dob: data.data.dob,
+          address: data.data.address,
+        },
+      });
+
+      res.json({ success: true, message: "Aadhar Verified Successfully" });
+    } else {
+      res.json({ success: false, message: "Aadhar Verification Failed" });
+    }
+  } catch (error) {
+    console.error("Error:", error);
+    res
+      .status(500)
+      .json({ error: "An error occurred while verifying the Aadhaar card" });
   }
 };

@@ -11,6 +11,7 @@ import {
   sendMoneyPeopleSuggestions,
   userDetails,
   saveContacts,
+  saveCreditCard,
 } from "../../controller/user/userController.js";
 
 userRoutes.post("/create-user", createUser);
@@ -23,5 +24,7 @@ userRoutes.get("/user-details", userDetails);
 userRoutes.get("/transfer-balance", handleBalanceTransferToOthers);
 userRoutes.post("/send-money-suggestions", sendMoneyPeopleSuggestions);
 userRoutes.post("/save-contacts", saveContacts);
+userRoutes.post("/save-credit-card", saveCreditCard);
+userRoutes.post("/save-bank-details", saveCreditCard);
 
 export default userRoutes;
