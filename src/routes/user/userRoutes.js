@@ -12,6 +12,8 @@ import {
   userDetails,
   saveContacts,
   saveCreditCard,
+  verifyAadharCard,
+  sendAadharOtp,
 } from "../../controller/user/userController.js";
 
 userRoutes.post("/create-user", createUser);
@@ -24,7 +26,7 @@ userRoutes.get("/user-details", userDetails);
 userRoutes.get("/transfer-balance", handleBalanceTransferToOthers);
 userRoutes.post("/send-money-suggestions", sendMoneyPeopleSuggestions);
 userRoutes.post("/save-contacts", saveContacts);
-userRoutes.post("/save-credit-card", saveCreditCard);
-userRoutes.post("/save-bank-details", saveCreditCard);
+userRoutes.post("/send-aadhar-otp", sendAadharOtp);
+userRoutes.post("/verify-aadhar-otp", verifyAadharCard);
 
 export default userRoutes;

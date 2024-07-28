@@ -803,6 +803,7 @@ export const saveBankDetails = async (req, res) => {
 
 export const sendAadharOtp = async (req, res) => {
   const { aadharNumber } = req.body;
+  console.log(aadharNumber, "aadharNumber");
   try {
     const response = await fetch(
       "https://api.quickekyc.com/api/v1/aadhaar-v2/generate-otp",
@@ -819,12 +820,14 @@ export const sendAadharOtp = async (req, res) => {
     );
 
     if (!response.ok) {
-      throw new Error(`HTTP error! Status: ${response.status}`);
+      // console.log(response);
     }
-
-    const data = await response.json();
-    const requestId = data.request_id;
-    res.json({ request_id: requestId });
+    // console.log(response);
+    const data = await response.text();
+    console.log(data, "data");
+    // const requestId = data.request_id;
+    // res.json({ request_id: requestId });
+    res.json({ aadharNumber });
   } catch (error) {
     console.error("Error:", error);
     res
@@ -852,13 +855,12 @@ export const verifyAadharCard = async (req, res) => {
     );
 
     if (!response.ok) {
-      throw new Error(`HTTP error! Status: ${response.status}`);
+      console.log(response);
     }
 
     const data = await response.json();
 
     if (data.data && data.data.full_name && data.data.full_name.length > 0) {
-      
       const usersCollection = collection(db, "users");
       const q = query(
         usersCollection,
