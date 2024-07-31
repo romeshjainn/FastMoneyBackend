@@ -3,6 +3,8 @@ export const userSchema = {
     id: "",
     name: "",
     number: "",
+    walletPin: "",
+    referID: "",
     email: "",
     pan: "",
     aadhar: "",
@@ -15,6 +17,9 @@ export const userSchema = {
     annual_income: 0,
     profile_picture: "",
     verification_status: "",
+    tempAddress: "",
+    joining_date: "",
+    joining_time: "",
     address: {
       street: "",
       city: "",
@@ -32,8 +37,6 @@ export const userSchema = {
   referredBy: {
     referrerId: "",
     referrerName: "",
-    joining_date: "",
-    joining_time: "",
   },
   sessionHistory: [
     {
@@ -46,16 +49,17 @@ export const userSchema = {
   bankDetails: [
     {
       bank_name: "",
-      account_: "",
+      account_number: "",
       ifsc_code: "",
       branch: "",
     },
   ],
-  creditCardDetails: [
+  creditCards: [
     {
-      card_: "",
       card_type: "",
+      card_number: "",
       expiry_date: "",
+      name_on_card: "",
       cvv: "",
     },
   ],

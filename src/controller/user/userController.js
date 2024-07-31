@@ -7,6 +7,7 @@ import {
   doc,
   updateDoc,
   arrayUnion,
+  getCountFromServer,
 } from "firebase/firestore";
 import { sendEmail } from "./mail.js";
 import { db } from "../../config/firebase.js";
@@ -17,7 +18,7 @@ import { validateTransactionData } from "../../utils/user/validateTransaction.js
 import { userSchema } from "./schema.js";
 import { Success, Error } from "../../utils/user/asyncResponse.js";
 import { format } from "date-fns";
-import axios from "axios";
+import { generateReferId } from "../../utils/user/referIdGenerator.js";
 
 // getting the html template form .ejs file
 export async function getEmailTemp(otp) {
@@ -37,23 +38,6 @@ export async function getEmailTemp(otp) {
 const otpExpirationTime = 60000;
 let otpData = {};
 
-// async function saveUser(req, res) {
-//   try {
-//     const userCollection = collection(db, "users");
-
-//     // const docRef = await addDoc(userCollection,data);
-//     await Promise.all(
-//       data.map(async (user) => {
-//         await addDoc(userCollection, user);
-//       })
-//     );
-//     console.log("Data successfully written to Firestore!");
-//     res.status(200).json({ success: "user saved successfully" });
-//   } catch (error) {
-//     console.log(error);
-//   }
-// }
-
 const getFirebaseData = async () => {
   try {
     const workRecord = collection(db, "users");
@@ -65,6 +49,15 @@ const getFirebaseData = async () => {
   }
 };
 
+async function getCollectionSize() {
+  try {
+    const collectionRef = collection(db, "users");
+    const snapshot = await getCountFromServer(collectionRef);
+    return snapshot.data().count;
+  } catch (error) {
+    return null;
+  }
+}
 export async function sendVerificationMail(req, res) {
   try {
     const { email } = req.body;
@@ -292,14 +285,14 @@ export const userDetails = async (req, res) => {
       name: user?.[0]?.userDetails?.name || "",
       number: user?.[0]?.userDetails?.number || "",
       email: user?.[0]?.userDetails?.email || "",
-      pan: user?.[0]?.userDetails?.pan || "",
-      aadhar: user?.[0]?.userDetails?.aadhar || "",
-      emp_type: user?.[0]?.userDetails?.emp_type || "",
-      annual_income: user?.[0]?.userDetails?.annual_income || "",
+      panNumber: user?.[0]?.userDetails?.pan || "",
+      aadharNumber: user?.[0]?.userDetails?.aadhar || "",
+      employmentType: user?.[0]?.userDetails?.emp_type || "",
+      income: user?.[0]?.userDetails?.annual_income || "",
+      referredBy: user?.[0]?.referredBy?.referrerName || "",
     };
 
     res.send(userDetails);
-    // res.send({ user });
   } catch (error) {
     console.log(error);
     res.status(500).send({ error: "An error occurred" });
@@ -387,7 +380,7 @@ export const getPeoplesSuggestion = async (req, res) => {
 
 export const handleBalanceTransferToOthers = async (req, res) => {
   try {
-    const { toPerson, balance, number } = req.body;
+    const { toPerson, balance, number, pin } = req.body;
 
     if (!toPerson || !balance || !number) {
       return res.status(400).send({ error: "Required fields are missing" });
@@ -408,28 +401,39 @@ export const handleBalanceTransferToOthers = async (req, res) => {
     );
 
     if (!currentUser) {
-      return res.status(404).send({ error: "Current user not found" });
+      return res
+        .status(404)
+        .send({ success: "false", error: "Current user not found" });
     }
 
     if (!recipientUser) {
-      return res.status(404).send({ error: "Recipient user not found" });
+      return res
+        .status(404)
+        .send({ success: "false", error: "Recipient user not found" });
     }
 
-    if (currentUser.balance < balance) {
-      return res.status(400).send({ error: "Insufficient balance" });
+    if (currentUser.userDetails.pin === pin) {
+      return res.status(404).send({ success: "false", error: "Pin Is Wrong" });
+    }
+
+    if (parseFloat(currentUser.wallet.balance) < parseFloat(balance)) {
+      return res
+        .status(400)
+        .send({ success: "false", error: "Insufficient balance" });
     }
 
     const transactionId = generateTransactionId();
 
     await updateDoc(doc(db, "users", currentUser.id), {
-      balance: currentUser.balance - balance,
+      "wallet.balance":
+        parseFloat(currentUser.wallet.balance) - parseFloat(balance),
       transactions: [
         ...(currentUser.transactions || []),
         {
           to: recipientUser.userDetails.number,
           transaction_id: transactionId,
-          transaction_amount: balance,
-          transaction_date: Timestamp.now(),
+          transaction_amount: parseFloat(balance),
+          transaction_date: "",
           transaction_type: "Debit",
           description: "Transfer to another user",
         },
@@ -437,14 +441,15 @@ export const handleBalanceTransferToOthers = async (req, res) => {
     });
 
     await updateDoc(doc(db, "users", recipientUser.id), {
-      balance: recipientUser.balance + balance,
+      "wallet.balance":
+        parseFloat(recipientUser.wallet.balance) + parseFloat(balance),
       transactions: [
         ...(recipientUser.transactions || []),
         {
           to: currentUser.userDetails.number,
           transaction_id: transactionId,
-          transaction_amount: balance,
-          transaction_date: Timestamp.now(),
+          transaction_amount: parseFloat(balance),
+          transaction_date: "",
           transaction_type: "Credit",
           description: "Received from another user",
         },
@@ -452,89 +457,22 @@ export const handleBalanceTransferToOthers = async (req, res) => {
     });
 
     res.send({
+      success: "true",
       message: "Balance transferred successfully",
       transaction_id: transactionId,
     });
   } catch (error) {
     console.log(error);
-    res.status(500).send({ error: "An error occurred" });
+    res.status(500).send({ success: "false", error: "An error occurred" });
   }
 };
 
-// export const createUser = async (req, res) => {
-//   try {
-//     const { number, ref } = req.body;
-
-//     const allUsers = await getFirebaseData();
-
-//     if (!allUsers.success) {
-//       return res.status(500).send("Error fetching users");
-//     }
-
-//     const userExist = allUsers.data.filter(
-//       (user) => String(user.userDetails.number) === String(number)
-//     );
-
-//     const referredBy = allUsers.data.filter(
-//       (user) => String(user.userDetails.id) === String(ref)
-//     );
-//     let referrerName = null;
-//     if (ref) {
-//       const referrer = allUsers.data.filter(
-//         (user) => user.userDetails.id === ref
-//       );
-//       if (referrer.length > 0) {
-//         referrerName = referrer[0].userDetails.name;
-//       }
-//     }
-
-//     const now = new Date();
-//     const formattedDate = format(now, "dd-MMMM-yyyy");
-//     const formattedTime = format(now, "hh:mm a");
-
-//     if (userExist.length > 0) {
-//       return res
-//         .status(400)
-//         .send({ Error: "User Exist", length: userExist.length });
-//     } else {
-//       const updatedUserDataSchema = {
-//         ...userSchema,
-//         userDetails: {
-//           ...userSchema.userDetails,
-//           number: number,
-//           id: number,
-//         },
-//         ...(ref && {
-//           referredBy: {
-//             referrerId: ref,
-//             referrerName: referrerName || null,
-//             joining_date: formattedDate,
-//             joining_time: formattedTime,
-//           },
-//         }),
-//       };
-
-//       const usersCollectionRef = collection(db, "users");
-//       const docRef = await addDoc(usersCollectionRef, updatedUserDataSchema);
-
-//       console.log(updatedUserDataSchema, "updatedUserDataSchema");
-//       res.json(updatedUserDataSchema);
-//     }
-//   } catch (error) {
-//     console.error(error, "error");
-//     res.status(500).send("Internal Server Error");
-//   }
-// };
-
 export const createUser = async (req, res) => {
   try {
-    const { number, ref } = await req.body;
-
-    console.log(number, "number", ref);
-
+    const { number } = await req.body;
     const allUsersSnapshot = await getDocs(collection(db, "users"));
     const allUsers = allUsersSnapshot.docs.map((doc) => doc.data());
-    console.log("running");
+
     if (!allUsers) {
       return res.status(500).send("Error fetching users");
     }
@@ -543,26 +481,13 @@ export const createUser = async (req, res) => {
       (user) => String(user.userDetails.number) === String(number)
     );
 
-    // if (userExist) {
-    //   return res
-    //     .status(500)
-    //     .send({ userExist: true, navigationPath: "/homepage" });
-    // }
-
-    let referrerDetails = null;
-    if (ref) {
-      referrerDetails = allUsers.find(
-        (user) => String(user.userDetails.id) === String(ref)
-      );
-      console.log(ref);
-      console.log(referrerDetails);
-    }
-
-    const now = new Date();
-    const formattedDate = format(now, "dd-MMMM-yyyy");
-    const formattedTime = format(now, "hh:mm a");
-
     if (userExist.length > 0) {
+      console.log({
+        userExist: true,
+        navigationPath: "/homepage",
+        message: "User Exist",
+        token: userExist[0].userDetails.id,
+      });
       return res.status(400).send({
         userExist: true,
         navigationPath: "/homepage",
@@ -577,49 +502,26 @@ export const createUser = async (req, res) => {
           number: number,
           id: number,
         },
-        ...(ref && {
-          referredBy: {
-            referrerId: ref,
-            referrerName: referrerDetails
-              ? referrerDetails.userDetails.name
-              : null,
-            joining_date: formattedDate,
-            joining_time: formattedTime,
-          },
-        }),
       };
 
       const usersCollectionRef = collection(db, "users");
       const docRef = await addDoc(usersCollectionRef, updatedUserDataSchema);
 
-      if (referrerDetails) {
-        const referrerDocRef = doc(db, "users", referrerDetails.userDetails.id);
-        const newReferredTeamMember = {
-          team_member_id: number,
-          team_member_name: updatedUserDataSchema.userDetails.name,
-        };
-
-        await updateDoc(referrerDocRef, {
-          referredTeam: [
-            ...(referrerDetails.referredTeam || []),
-            newReferredTeamMember,
-          ],
-        });
-      }
-
-      res.json({
+      console.log({
         userExist: false,
-        // navigationPath: "/signup",
         navigationPath: "/signup",
         message: "User Created",
         token: number,
+        docRef,
       });
-      // res.json({
-      //   userExist: false,
-      //   updatedUserDataSchema,
-      //   docRef,
-      //   navigationPath: "/signup",
-      // });
+
+      res.json({
+        userExist: false,
+        navigationPath: "/signup",
+        message: "User Created",
+        token: number,
+        docRef,
+      });
     }
   } catch (error) {
     console.error(error, "error");
@@ -629,11 +531,22 @@ export const createUser = async (req, res) => {
 
 export const handleUserSignup = async (req, res) => {
   try {
-    const { number, data } = req.body;
+    const { number, data, referrerId } = req.body;
 
     if (!number || !data) {
-      return res.status(400).send({ Error: "Missing number or data" });
+      return res
+        .status(400)
+        .send({ success: true, Error: "Missing number or data" });
     }
+
+    const obj = {
+      tempAddress: data.address,
+      aadhar: data.aadharCardNumber,
+      pan: data.panCardNumber,
+      emp_type: data.employmentType,
+      annual_income: data.annualIncome,
+      walletPin: data.walletPin,
+    };
 
     const usersCollection = collection(db, "users");
     const q = query(usersCollection, where("userDetails.number", "==", number));
@@ -646,14 +559,54 @@ export const handleUserSignup = async (req, res) => {
     const userDoc = querySnapshot.docs[0];
     const userDocRef = doc(db, "users", userDoc.id);
 
+    let referrerDetails = null;
+    if (referrerId) {
+      const referrerData = await getFirebaseData();
+      referrerDetails = referrerData.find(
+        (user) => String(user.userDetails.referID) === String(referrerId)
+      );
+    }
+
+    const now = new Date();
+    const formattedDate = format(now, "dd-MMMM-yyyy");
+    const formattedTime = format(now, "hh:mm a");
+
     await updateDoc(userDocRef, {
       userDetails: {
         ...userDoc.data().userDetails,
-        ...data,
+        ...obj,
+        joining_date: formattedDate,
+        joining_time: formattedTime,
       },
+      ...(referrerId &&
+        referrerDetails && {
+          referredBy: {
+            referrerId: referrerId,
+            referrerName: referrerDetails.userDetails.name || "",
+          },
+        }),
     });
 
-    res.status(200).send({ message: "User data updated successfully" });
+    if (referrerDetails) {
+      const referrerDocRef = doc(db, "users", referrerDetails.userDetails.id);
+      const newReferredTeamMember = {
+        team_member_id: number,
+        team_member_name: updatedUserDataSchema.userDetails.name,
+        joining_date: formattedDate,
+        joining_time: formattedTime,
+      };
+
+      await updateDoc(referrerDocRef, {
+        referredTeam: [
+          ...(referrerDetails.referredTeam || []),
+          newReferredTeamMember,
+        ],
+      });
+    }
+
+    res
+      .status(200)
+      .send({ success: true, message: "User data updated successfully" });
   } catch (error) {
     console.error("Error updating user:", error);
     res.status(500).send("Server Error");
@@ -662,40 +615,44 @@ export const handleUserSignup = async (req, res) => {
 
 export const sendMoneyPeopleSuggestions = async (req, res) => {
   try {
-    const { name } = req.body;
+    const { searchQuery } = req.body;
 
-    if (!name) {
+    if (!searchQuery) {
       return res.status(400).json({ error: "Name parameter is required" });
     }
 
     const allUsersData = await getFirebaseData();
     const { data } = allUsersData;
+    if (data.length) {
+      const suggestions = data.filter(
+        (user) =>
+          user.userDetails.name
+            .toLowerCase()
+            .includes(searchQuery.toLowerCase()) ||
+          user.userDetails.number
+            .toLowerCase()
+            .includes(searchQuery.toLowerCase())
+      );
 
-    const suggestions = data
-      .map((item) => {
-        return item.transactionHistory.filter((transaction) => {
-          return (
-            (transaction.toName &&
-              transaction.toName.toLowerCase().includes(name.toLowerCase())) ||
-            (transaction.toNumber &&
-              transaction.toNumber.toLowerCase().includes(name.toLowerCase()))
-          );
+      console.log(suggestions, "suggestions");
+
+      let details = [];
+
+      if (suggestions.length) {
+        details = suggestions.map((item) => {
+          return {
+            name: item.userDetails.name,
+            number: item.userDetails.number,
+          };
         });
-      })
-      .flat();
+      }
 
-    let details = [];
-
-    if (suggestions.length) {
-      details = suggestions.map((item) => {
-        return {
-          name: item.toName,
-          number: item.toNumber,
-        };
-      });
+      res
+        .status(200)
+        .json({ success: true, details: details, contacts: data.contacts });
+    } else {
+      res.status(400).json({ success: false });
     }
-
-    res.status(200).json(Success(details));
   } catch (error) {
     console.error(error);
     res.status(500).json({ error: "Internal Server Error" });
@@ -774,7 +731,7 @@ export const saveCreditCard = async (req, res) => {
 export const saveBankDetails = async (req, res) => {
   try {
     const { bankDetails, number } = req.body;
-
+    console.log(bankDetails, number);
     if (!bankDetails || !number) {
       return res.status(400).send({ Error: "Missing bank details or number" });
     }
@@ -803,7 +760,6 @@ export const saveBankDetails = async (req, res) => {
 
 export const sendAadharOtp = async (req, res) => {
   const { aadharNumber } = req.body;
-  console.log(aadharNumber, "aadharNumber");
   try {
     const response = await fetch(
       "https://api.quickekyc.com/api/v1/aadhaar-v2/generate-otp",
@@ -820,14 +776,18 @@ export const sendAadharOtp = async (req, res) => {
     );
 
     if (!response.ok) {
-      // console.log(response);
+      const errorData = await response.text();
+      console.error("Response error:", errorData);
+      return res
+        .status(response.status)
+        .json({ error: "Failed to generate OTP" });
     }
-    // console.log(response);
-    const data = await response.text();
-    console.log(data, "data");
-    // const requestId = data.request_id;
-    // res.json({ request_id: requestId });
-    res.json({ aadharNumber });
+
+    const data = await response.json();
+    console.log("Response data:", data);
+
+    const requestId = data.request_id;
+    res.json({ request_id: requestId });
   } catch (error) {
     console.error("Error:", error);
     res
@@ -837,7 +797,8 @@ export const sendAadharOtp = async (req, res) => {
 };
 
 export const verifyAadharCard = async (req, res) => {
-  const { requestId, otp, number } = req.body;
+  const { requestId, otp, number, aadharNumber } = req.body;
+  console.log(requestId, otp, number);
   try {
     const response = await fetch(
       "https://api.quickekyc.com/api/v1/aadhaar-v2/submit-otp",
@@ -874,8 +835,18 @@ export const verifyAadharCard = async (req, res) => {
 
       const userDoc = querySnapshot.docs[0];
       const userDocRef = doc(db, "users", userDoc.id);
+      const colLength = await getCollectionSize();
+      let referID = "";
+      if (colLength) {
+        const id = generateReferId(data.data.full_name, colLength, "colLength");
+        referID = id;
+      } else {
+        const id = generateReferId(data.data.full_name, aadharNumber, "aadhar");
+        referID = id;
+      }
 
       await updateDoc(userDocRef, {
+        "userDetails.referID": referID,
         aadharData: {
           name: data.data.full_name,
           dob: data.data.dob,
@@ -883,9 +854,130 @@ export const verifyAadharCard = async (req, res) => {
         },
       });
 
-      res.json({ success: true, message: "Aadhar Verified Successfully" });
+      res.json({
+        success: true,
+        message: "Aadhar Verified Successfully",
+        data,
+      });
     } else {
-      res.json({ success: false, message: "Aadhar Verification Failed" });
+      res.json({ success: false, message: "Aadhar Verification Failed", data });
+    }
+  } catch (error) {
+    console.error("Error:", error);
+    res
+      .status(500)
+      .json({ error: "An error occurred while verifying the Aadhaar card" });
+  }
+};
+
+export const saveCreditCardDetails = async (req, res) => {
+  try {
+    const { creditCardDetails, number } = req.body;
+
+    console.log(creditCardDetails, number);
+    const usersCollection = collection(db, "users");
+    const q = query(usersCollection, where("userDetails.number", "==", number));
+    const querySnapshot = await getDocs(q);
+
+    if (querySnapshot.empty) {
+      return res.status(404).send({ Error: "User not found" });
+    }
+
+    const userDoc = querySnapshot.docs[0];
+    const userDocRef = doc(db, "users", userDoc.id);
+
+    await updateDoc(userDocRef, {
+      creditCards: arrayUnion(creditCardDetails),
+    });
+    res.json({
+      success: true,
+      message: "Card Added Successfully",
+    });
+  } catch (error) {
+    console.error("Error:", error);
+    res
+      .status(500)
+      .json({ error: "An error occurred while verifying the Aadhaar card" });
+  }
+};
+
+export const verifyPanNumber = async (req, res) => {
+  const { panCardNumber } = req.body;
+  try {
+    const response = await fetch("https://api.quickekyc.com/api/v1/pan/pan", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        key: process.env.QuickKycKey,
+        id_number: panCardNumber,
+      }),
+    });
+
+    if (!response.ok) {
+      const errorData = await response.text();
+      console.error("Response error:", errorData);
+      return res
+        .status(response.status)
+        .json({ error: "Failed to generate OTP" });
+    }
+
+    const data = await response.json();
+    console.log("Response data:", data);
+
+    if (data.status === "error") {
+      res.json({ status: "success", nameOnPanCard: "", status: "failed" });
+    } else {
+      const nameOnPanCard = data.data.full_name;
+      const category = data.data.person;
+      res.json({ status: "failed", nameOnPanCard, category });
+    }
+  } catch (error) {
+    console.error("Error:", error);
+    res
+      .status(500)
+      .json({ error: "An error occurred while verifying the Aadhaar card" });
+  }
+};
+
+export const sendOtp = async (req, res) => {
+  const { data } = req.body;
+  try {
+    const response = await fetch("https://auth.otpless.app/auth/otp/v1/send", {
+      method: "POST",
+      headers: {
+        clientId: "YOUR_CLIENT_ID",
+        clientSecret: "YOUR_CLIENT_SECRET",
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        phoneNumber: data.number,
+        orderId: "ORDER_ID(optional)",
+        // hash: "MOBILE_APPLICATION_HASH(optional)",
+        otpLength: 6,
+        channel: "SMS",
+        expiry: 60,
+      }),
+    });
+
+    if (!response.ok) {
+      const errorData = await response.text();
+      console.error("Response error:", errorData);
+      return res
+        .status(response.status)
+        .json({ error: "Failed to generate OTP" });
+    }
+
+    const data = await response.json();
+    console.log("Response data:", data);
+
+    if (data.status === "error") {
+      res.json({ status: "success", nameOnPanCard: "", status: "failed" });
+    } else {
+      const nameOnPanCard = data.data.full_name;
+      const category = data.data.person;
+      res.json({ status: "failed", nameOnPanCard, category });
     }
   } catch (error) {
     console.error("Error:", error);
