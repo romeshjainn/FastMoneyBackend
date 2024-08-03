@@ -19,6 +19,7 @@ import { userSchema } from "./schema.js";
 import { Success, Error } from "../../utils/user/asyncResponse.js";
 import { format } from "date-fns";
 import { generateReferId } from "../../utils/user/referIdGenerator.js";
+import { userIdGenerator } from "../../utils/user/userIdGenerator.js";
 
 // getting the html template form .ejs file
 export async function getEmailTemp(otp) {
@@ -107,26 +108,6 @@ export async function verifyOTP(req, res) {
 
 // new controllers
 
-export const signUp = async (req, res) => {
-  try {
-    const userData = req.body;
-    if (!userData) {
-      return res.status(400).json({ error: "User data is required" });
-    }
-
-    const usersCollectionRef = collection(db, "users");
-
-    const docRef = await addDoc(usersCollectionRef, userData);
-
-    res
-      .status(200)
-      .json({ message: "User data added successfully", docId: docRef.id });
-  } catch (error) {
-    console.error("Error adding document to Firestore: ", error);
-    res.status(500).json({ error: "Failed to add data" });
-  }
-};
-
 export const homepageData = async (req, res) => {
   try {
     const { id } = req.query;
@@ -174,7 +155,7 @@ export const referralData = async (req, res) => {
     const record = workSnapshot.docs.map((doc) => doc.data());
 
     const userRecord = record.filter(
-      (user) => String(user.userDetails.user_id) === String(id)
+      (user) => String(user.userDetails.id) === String(id)
     )[0];
 
     const refers = userRecord ? userRecord.referredTeam : [];
@@ -185,7 +166,7 @@ export const referralData = async (req, res) => {
   }
 };
 
-export const allTransactions = async (req, res) => {
+export const tansactionDetails = async (req, res) => {
   try {
     const { id } = req.query;
     const workRecord = collection(db, "users");
@@ -193,7 +174,7 @@ export const allTransactions = async (req, res) => {
     const record = workSnapshot.docs.map((doc) => doc.data());
 
     const userRecord = record.filter(
-      (user) => String(user.userDetails.user_id) === String(id)
+      (user) => String(user.userDetails.id) === String(id)
     )[0];
 
     const allTransactions = userRecord ? userRecord.transactionsRecord : [];
@@ -211,7 +192,7 @@ export const bankDetails = async (req, res) => {
     const workSnapshot = await getDocs(workRecord);
     const record = workSnapshot.docs.map((doc) => doc.data());
     const userRecord = record.filter(
-      (user) => String(user.userDetails.user_id) === String(id)
+      (user) => String(user.userDetails.id) === String(id)
     )[0];
 
     const bankDetails = userRecord.bankDetails;
@@ -230,7 +211,7 @@ export const creditCardDetails = async (req, res) => {
     const workSnapshot = await getDocs(workRecord);
     const record = workSnapshot.docs.map((doc) => doc.data());
     const userRecord = record.filter(
-      (user) => String(user.userDetails.user_id) === String(id)
+      (user) => String(user.userDetails.id) === String(id)
     )[0];
 
     const creditCardDetails = userRecord.creditCardDetails;
@@ -242,14 +223,14 @@ export const creditCardDetails = async (req, res) => {
   }
 };
 
-export const rewards = async (req, res) => {
+export const rewardDetails = async (req, res) => {
   try {
     const { id } = req.query;
     const workRecord = collection(db, "users");
     const workSnapshot = await getDocs(workRecord);
     const record = workSnapshot.docs.map((doc) => doc.data());
     const userRecord = record.filter(
-      (user) => String(user.userDetails.user_id) === String(id)
+      (user) => String(user.userDetails.id) === String(id)
     )[0];
 
     const rewardsHistory = userRecord.rewardsHistory;
@@ -307,7 +288,7 @@ export const allRewards = async (req, res) => {
     const record = workSnapshot.docs.map((doc) => doc.data());
 
     const userRecord = record.filter(
-      (user) => String(user.userDetails.user_id) === String(id)
+      (user) => String(user.userDetails.id) === String(id)
     )[0];
 
     const allTransactions = userRecord ? userRecord.rewardsHistory : [];
@@ -315,46 +296,6 @@ export const allRewards = async (req, res) => {
   } catch (error) {
     console.log(error);
     res.status(500).send({ error: "An error occurred" });
-  }
-};
-
-export const addTransaction = async (req, res) => {
-  try {
-    const data = req.body;
-
-    if (!validateTransactionData(data)) {
-      return res.status(400).json({ error: "Invalid transaction data" });
-    }
-
-    const transactionId = generateTransactionId();
-
-    const transaction = {
-      ...data,
-      transaction_id: transactionId,
-      transaction_amount: parseFloat(data.transaction_amount),
-    };
-
-    const userDocRef = doc(db, "users", data.to);
-    const userDoc = await getDocs(userDocRef);
-
-    if (!userDoc.exists()) {
-      return res.status(404).json({ error: "User not found" });
-    }
-
-    const userData = userDoc.data();
-    const updatedTransactionHistory = userData.transactionHistory || [];
-    updatedTransactionHistory.push(transaction);
-
-    await updateDoc(userDocRef, {
-      transactionHistory: updatedTransactionHistory,
-    });
-
-    res
-      .status(200)
-      .json({ message: "Transaction added successfully", transactionId });
-  } catch (error) {
-    console.error("Error adding transaction:", error);
-    res.status(500).json({ error: "Failed to add transaction" });
   }
 };
 
@@ -380,9 +321,9 @@ export const getPeoplesSuggestion = async (req, res) => {
 
 export const handleBalanceTransferToOthers = async (req, res) => {
   try {
-    const { toPerson, balance, number, pin } = req.body;
+    const { toPerson, balance, id, pin } = req.body;
 
-    if (!toPerson || !balance || !number) {
+    if (!toPerson || !balance || !id) {
       return res.status(400).send({ error: "Required fields are missing" });
     }
 
@@ -393,9 +334,7 @@ export const handleBalanceTransferToOthers = async (req, res) => {
       ...doc.data(),
     }));
 
-    const currentUser = records.find(
-      (user) => user.userDetails.number === number
-    );
+    const currentUser = records.find((user) => user.userDetails.id === id);
     const recipientUser = records.find(
       (user) => user.userDetails.number === toPerson
     );
@@ -424,6 +363,10 @@ export const handleBalanceTransferToOthers = async (req, res) => {
 
     const transactionId = generateTransactionId();
 
+    const now = new Date();
+    const formattedDate = format(now, "dd-MMMM-yyyy");
+    const formattedTime = format(now, "hh:mm a");
+
     await updateDoc(doc(db, "users", currentUser.id), {
       "wallet.balance":
         parseFloat(currentUser.wallet.balance) - parseFloat(balance),
@@ -433,7 +376,8 @@ export const handleBalanceTransferToOthers = async (req, res) => {
           to: recipientUser.userDetails.number,
           transaction_id: transactionId,
           transaction_amount: parseFloat(balance),
-          transaction_date: "",
+          transaction_date: formattedDate,
+          transaction_time: formattedTime,
           transaction_type: "Debit",
           description: "Transfer to another user",
         },
@@ -449,7 +393,8 @@ export const handleBalanceTransferToOthers = async (req, res) => {
           to: currentUser.userDetails.number,
           transaction_id: transactionId,
           transaction_amount: parseFloat(balance),
-          transaction_date: "",
+          transaction_date: formattedDate,
+          transaction_time: formattedTime,
           transaction_type: "Credit",
           description: "Received from another user",
         },
@@ -469,7 +414,9 @@ export const handleBalanceTransferToOthers = async (req, res) => {
 
 export const createUser = async (req, res) => {
   try {
-    const { number } = await req.body;
+    const { number, id } = await req.body;
+
+    console.log(number, id);
     const allUsersSnapshot = await getDocs(collection(db, "users"));
     const allUsers = allUsersSnapshot.docs.map((doc) => doc.data());
 
@@ -500,7 +447,7 @@ export const createUser = async (req, res) => {
         userDetails: {
           ...userSchema.userDetails,
           number: number,
-          id: number,
+          id: id,
         },
       };
 
@@ -531,12 +478,12 @@ export const createUser = async (req, res) => {
 
 export const handleUserSignup = async (req, res) => {
   try {
-    const { number, data, referrerId } = req.body;
+    const { id, data, referrerId, mobileNumber, nameOfAadhar } = req.body;
 
-    if (!number || !data) {
+    if (!id || !data) {
       return res
         .status(400)
-        .send({ success: true, Error: "Missing number or data" });
+        .send({ success: false, Error: "Missing id or data" });
     }
 
     const obj = {
@@ -549,27 +496,58 @@ export const handleUserSignup = async (req, res) => {
     };
 
     const usersCollection = collection(db, "users");
-    const q = query(usersCollection, where("userDetails.number", "==", number));
+    const q = query(usersCollection, where("userDetails.id", "==", id));
+
+    // Log query and collection details
+    console.log("Query:", q);
+    console.log("Users Collection:", usersCollection);
+
     const querySnapshot = await getDocs(q);
 
+    // Log query results
+    console.log("Query Snapshot:", querySnapshot);
+
     if (querySnapshot.empty) {
+      console.log("User Not Found:", verifyUserId);
       return res.status(404).send({ Error: "User not found" });
     }
 
     const userDoc = querySnapshot.docs[0];
     const userDocRef = doc(db, "users", userDoc.id);
 
-    let referrerDetails = null;
-    if (referrerId) {
-      const referrerData = await getFirebaseData();
-      referrerDetails = referrerData.find(
-        (user) => String(user.userDetails.referID) === String(referrerId)
-      );
-    }
-
     const now = new Date();
     const formattedDate = format(now, "dd-MMMM-yyyy");
     const formattedTime = format(now, "hh:mm a");
+
+    let referrerDetails = null;
+    if (referrerId) {
+      const { data } = await getFirebaseData();
+      referrerDetails = data.find(
+        (user) => String(user.userDetails.referID) === String(referrerId)
+      );
+
+      const referrerQuery = query(
+        usersCollection,
+        where("userDetails.referID", "==", referrerId)
+      );
+      const referrerQuerySnapshot = await getDocs(referrerQuery);
+
+      if (referrerQuerySnapshot.empty) {
+        console.log("Referrer Not Found:", referrerId);
+      } else {
+        const referrerDoc = referrerQuerySnapshot.docs[0];
+        const referrerDocRef = doc(db, "users", referrerDoc.id);
+
+        await updateDoc(referrerDocRef, {
+          referredTeam: arrayUnion({
+            name: nameOfAadhar,
+            number: mobileNumber,
+            joining_date: formattedDate,
+            joining_time: formattedTime,
+          }),
+        });
+      }
+    }
 
     await updateDoc(userDocRef, {
       userDetails: {
@@ -587,22 +565,22 @@ export const handleUserSignup = async (req, res) => {
         }),
     });
 
-    if (referrerDetails) {
-      const referrerDocRef = doc(db, "users", referrerDetails.userDetails.id);
-      const newReferredTeamMember = {
-        team_member_id: number,
-        team_member_name: updatedUserDataSchema.userDetails.name,
-        joining_date: formattedDate,
-        joining_time: formattedTime,
-      };
+    // if (referrerDetails) {
+    //   const referrerDocRef = doc(db, "users", referrerDetails.userDetails.id);
+    //   const newReferredTeamMember = {
+    //     team_member_id: mobileNumber,
+    //     team_member_name: updatedUserDataSchema.userDetails.name,
+    //     joining_date: formattedDate,
+    //     joining_time: formattedTime,
+    //   };
 
-      await updateDoc(referrerDocRef, {
-        referredTeam: [
-          ...(referrerDetails.referredTeam || []),
-          newReferredTeamMember,
-        ],
-      });
-    }
+    //   await updateDoc(referrerDocRef, {
+    //     referredTeam: [
+    //       ...(referrerDetails.referredTeam || []),
+    //       newReferredTeamMember,
+    //     ],
+    //   });
+    // }
 
     res
       .status(200)
@@ -661,13 +639,13 @@ export const sendMoneyPeopleSuggestions = async (req, res) => {
 
 export const saveContacts = async (req, res) => {
   try {
-    const { number, contacts } = req.body;
-    if (!contacts || !number) {
+    const { id, contacts } = req.body;
+    if (!contacts || !id) {
       return res.status(400).send({ Error: "Missing contacts or data" });
     }
 
     const usersCollection = collection(db, "users");
-    const q = query(usersCollection, where("userDetails.number", "==", number));
+    const q = query(usersCollection, where("userDetails.id", "==", id));
     const querySnapshot = await getDocs(q);
 
     if (querySnapshot.empty) {
@@ -690,7 +668,7 @@ export const saveContacts = async (req, res) => {
 
 export const saveCreditCard = async (req, res) => {
   try {
-    const { cardDetails, number } = req.body;
+    const { cardDetails, id } = req.body;
 
     // Validate input
     if (
@@ -699,14 +677,14 @@ export const saveCreditCard = async (req, res) => {
       !cardDetails.card_type ||
       !cardDetails.expiry_date ||
       !cardDetails.cvv ||
-      !number
+      !id
     ) {
-      return res.status(400).send({ Error: "Missing card details or number" });
+      return res.status(400).send({ Error: "Missing card details or id" });
     }
 
-    // Query to find user with the given card number
+    // Query to find user with the given card id
     const usersCollection = collection(db, "users");
-    const q = query(usersCollection, where("userDetails.number", "==", number));
+    const q = query(usersCollection, where("userDetails.id", "==", id));
     const querySnapshot = await getDocs(q);
 
     if (querySnapshot.empty) {
@@ -730,14 +708,14 @@ export const saveCreditCard = async (req, res) => {
 
 export const saveBankDetails = async (req, res) => {
   try {
-    const { bankDetails, number } = req.body;
-    console.log(bankDetails, number);
-    if (!bankDetails || !number) {
-      return res.status(400).send({ Error: "Missing bank details or number" });
+    const { bankDetails, id } = req.body;
+    console.log(bankDetails, id);
+    if (!bankDetails || !id) {
+      return res.status(400).send({ Error: "Missing bank details or id" });
     }
 
     const usersCollection = collection(db, "users");
-    const q = query(usersCollection, where("userDetails.number", "==", number));
+    const q = query(usersCollection, where("userDetails.id", "==", id));
     const querySnapshot = await getDocs(q);
 
     if (querySnapshot.empty) {
@@ -797,8 +775,8 @@ export const sendAadharOtp = async (req, res) => {
 };
 
 export const verifyAadharCard = async (req, res) => {
-  const { requestId, otp, number, aadharNumber } = req.body;
-  console.log(requestId, otp, number);
+  const { requestId, otp, id, aadharNumber } = req.body;
+  console.log(requestId, otp, id, aadharNumber);
   try {
     const response = await fetch(
       "https://api.quickekyc.com/api/v1/aadhaar-v2/submit-otp",
@@ -820,13 +798,11 @@ export const verifyAadharCard = async (req, res) => {
     }
 
     const data = await response.json();
+    console.log(data, "data");
 
     if (data.data && data.data.full_name && data.data.full_name.length > 0) {
       const usersCollection = collection(db, "users");
-      const q = query(
-        usersCollection,
-        where("userDetails.number", "==", number)
-      );
+      const q = query(usersCollection, where("userDetails.id", "==", id));
       const querySnapshot = await getDocs(q);
 
       if (querySnapshot.empty) {
@@ -854,13 +830,18 @@ export const verifyAadharCard = async (req, res) => {
         },
       });
 
+      console.log(data, "data");
       res.json({
         success: true,
         message: "Aadhar Verified Successfully",
         data,
       });
     } else {
-      res.json({ success: false, message: "Aadhar Verification Failed", data });
+      res.json({
+        success: false,
+        message: "Aadhar Verification Failed",
+        data,
+      });
     }
   } catch (error) {
     console.error("Error:", error);
@@ -872,11 +853,11 @@ export const verifyAadharCard = async (req, res) => {
 
 export const saveCreditCardDetails = async (req, res) => {
   try {
-    const { creditCardDetails, number } = req.body;
+    const { creditCardDetails, id } = req.body;
 
-    console.log(creditCardDetails, number);
+    console.log(creditCardDetails, id);
     const usersCollection = collection(db, "users");
-    const q = query(usersCollection, where("userDetails.number", "==", number));
+    const q = query(usersCollection, where("userDetails.id", "==", id));
     const querySnapshot = await getDocs(q);
 
     if (querySnapshot.empty) {
@@ -920,24 +901,25 @@ export const verifyPanNumber = async (req, res) => {
       console.error("Response error:", errorData);
       return res
         .status(response.status)
-        .json({ error: "Failed to generate OTP" });
+        .json({ success: false, error: "Failed to generate OTP" });
     }
 
     const data = await response.json();
     console.log("Response data:", data);
 
     if (data.status === "error") {
-      res.json({ status: "success", nameOnPanCard: "", status: "failed" });
+      res.json({ success: false, nameOnPanCard: "", status: "failed" });
     } else {
       const nameOnPanCard = data.data.full_name;
       const category = data.data.person;
-      res.json({ status: "failed", nameOnPanCard, category });
+      res.json({ success: true, nameOnPanCard, category });
     }
   } catch (error) {
     console.error("Error:", error);
-    res
-      .status(500)
-      .json({ error: "An error occurred while verifying the Aadhaar card" });
+    res.status(500).json({
+      success: false,
+      error: "An error occurred while verifying the Aadhaar card",
+    });
   }
 };
 
@@ -984,5 +966,70 @@ export const sendOtp = async (req, res) => {
     res
       .status(500)
       .json({ error: "An error occurred while verifying the Aadhaar card" });
+  }
+};
+
+export const raiseAComplaint = async (req, res) => {
+  try {
+    const { id, type, data } = req.body;
+    console.log(id, type, data);
+
+    // Validate the type to be one of the allowed keys
+    const allowedTypes = [
+      "updateDetailsRequest",
+      "issueWithTransactions",
+      "complaint",
+    ];
+    if (!allowedTypes.includes(type)) {
+      return res.status(400).send({ Error: "Invalid type" });
+    }
+
+    const usersCollection = collection(db, "users");
+    const q = query(usersCollection, where("userDetails.id", "==", id));
+    const querySnapshot = await getDocs(q);
+
+    if (querySnapshot.empty) {
+      return res.status(404).send({ Error: "User not found" });
+    }
+
+    const userDoc = querySnapshot.docs[0];
+    const userDocRef = doc(db, "users", userDoc.id);
+
+    // Update the specific array based on the type
+    await updateDoc(userDocRef, {
+      [`complaint.${type}`]: arrayUnion(data),
+    });
+
+    res.status(200).send({ message: "Bank details updated successfully" });
+  } catch (error) {
+    console.error("Error updating bank details:", error);
+    res.status(500).send({ Error: "Server Error" });
+  }
+};
+
+export const accountDetails = async (req, res) => {
+  try {
+    const { id } = req.query;
+    if (!id) {
+      return res.status(400).send({ error: "User ID is required" });
+    }
+
+    const records = getFirebaseData();
+
+    const userRecord = records.find(
+      (user) => String(user.userDetails.id) === String(id)
+    );
+
+    if (!userRecord) {
+      return res.status(404).send({ error: "User not found" });
+    }
+
+    res.send({
+      success: true,
+      data: userRecord.userDetails,
+    });
+  } catch (error) {
+    console.error(error);
+    res.status(500).send({ error: "An internal server error occurred" });
   }
 };

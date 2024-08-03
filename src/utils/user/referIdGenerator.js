@@ -12,9 +12,12 @@ export const generateReferId = (name, number, type) => {
   if (type == "colLength") {
     referId = value + (startFrom + Number(number));
   } else {
-    let id = Number(number.substring(0, 4));
-    const num = startFrom + id;
+    let id = number.substring(0, 4);
+    console.log(id, startFrom);
+    const num = startFrom + Number(id);
     referId = value + num;
   }
   return referId;
 };
+
+console.log(generateReferId("romesh jain", 0, "colLength"));
