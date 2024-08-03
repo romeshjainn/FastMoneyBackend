@@ -158,8 +158,8 @@ export const referralData = async (req, res) => {
       (user) => String(user.userDetails.id) === String(id)
     )[0];
 
-    const refers = userRecord ? userRecord.referredTeam : [];
-    res.send({ refers });
+    const referredTeam = userRecord ? userRecord.referredTeam : [];
+    res.send({ referredTeam });
   } catch (error) {
     console.log(error);
     res.status(500).send({ error: "An error occurred" });
@@ -169,6 +169,7 @@ export const referralData = async (req, res) => {
 export const tansactionDetails = async (req, res) => {
   try {
     const { id } = req.query;
+    console.log(id, "id-id");
     const workRecord = collection(db, "users");
     const workSnapshot = await getDocs(workRecord);
     const record = workSnapshot.docs.map((doc) => doc.data());
@@ -177,7 +178,7 @@ export const tansactionDetails = async (req, res) => {
       (user) => String(user.userDetails.id) === String(id)
     )[0];
 
-    const allTransactions = userRecord ? userRecord.transactionsRecord : [];
+    const allTransactions = userRecord ? userRecord.transactions : [];
     res.send({ allTransactions });
   } catch (error) {
     console.log(error);
@@ -374,6 +375,7 @@ export const handleBalanceTransferToOthers = async (req, res) => {
         ...(currentUser.transactions || []),
         {
           to: recipientUser.userDetails.number,
+          personName: recipientUser.userDetails.name,
           transaction_id: transactionId,
           transaction_amount: parseFloat(balance),
           transaction_date: formattedDate,
@@ -827,6 +829,8 @@ export const verifyAadharCard = async (req, res) => {
           name: data.data.full_name,
           dob: data.data.dob,
           address: data.data.address,
+          gender: data.data.gender,
+          zipCode: data.data.zip,
         },
       });
 
@@ -834,13 +838,12 @@ export const verifyAadharCard = async (req, res) => {
       res.json({
         success: true,
         message: "Aadhar Verified Successfully",
-        data,
+        name: data.data.full_name,
       });
     } else {
       res.json({
         success: false,
         message: "Aadhar Verification Failed",
-        data,
       });
     }
   } catch (error) {
@@ -971,14 +974,14 @@ export const sendOtp = async (req, res) => {
 
 export const raiseAComplaint = async (req, res) => {
   try {
-    const { id, type, data } = req.body;
-    console.log(id, type, data);
+    const { id, type, complaintDetails } = req.body;
+    console.log(id, type, complaintDetails);
 
     // Validate the type to be one of the allowed keys
     const allowedTypes = [
-      "updateDetailsRequest",
-      "issueWithTransactions",
-      "complaint",
+      "detailsUpdateIssue",
+      "transactionIssue",
+      "raiseAComplaintIssue",
     ];
     if (!allowedTypes.includes(type)) {
       return res.status(400).send({ Error: "Invalid type" });
@@ -997,7 +1000,7 @@ export const raiseAComplaint = async (req, res) => {
 
     // Update the specific array based on the type
     await updateDoc(userDocRef, {
-      [`complaint.${type}`]: arrayUnion(data),
+      [`complaint.${type}`]: arrayUnion(complaintDetails),
     });
 
     res.status(200).send({ message: "Bank details updated successfully" });
@@ -1024,12 +1027,47 @@ export const accountDetails = async (req, res) => {
       return res.status(404).send({ error: "User not found" });
     }
 
+    const accountDetails = {
+      name: userRecord.userDetails.name,
+      number: userRecord.userDetails.number,
+      email: userRecord.userDetails.email,
+      panNumber: userRecord.userDetails.pan,
+      aadharNumber: userRecord.userDetails.aadhar,
+      employmentType: userRecord.userDetails.emp_type,
+      income: userRecord.userDetails.annual_income,
+      referredBy: userRecord.referredBy.referrerName,
+    };
+
     res.send({
       success: true,
-      data: userRecord.userDetails,
+      data: accountDetails,
     });
   } catch (error) {
     console.error(error);
     res.status(500).send({ error: "An internal server error occurred" });
+  }
+};
+
+export const getComplaints = async (req, res) => {
+  try {
+    const { id } = req.query;
+
+    if (!id) {
+      return res.status(400).send({ error: "User ID is required" });
+    }
+
+    const { data } = await getFirebaseData();
+
+    const user = data.filter((user) => user.userDetails.id === id);
+    console.log(user, "user");
+
+    if (!user.length) {
+      return res.status(404).send({ error: "User not found" });
+    }
+
+    res.send({ complaints: user[0].complaint });
+  } catch (error) {
+    console.log(error);
+    res.status(500).send({ error: "An error occurred" });
   }
 };

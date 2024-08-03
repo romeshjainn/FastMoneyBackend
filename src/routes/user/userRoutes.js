@@ -24,6 +24,7 @@ import {
   bankDetails,
   tansactionDetails,
   referralData,
+  getComplaints,
 } from "../../controller/user/userController.js";
 
 userRoutes.post("/create-user", createUser);
@@ -50,5 +51,6 @@ userRoutes.get("/bank-details", bankDetails);
 userRoutes.get("/credit-details", creditCardDetails);
 userRoutes.get("/reward-details", rewardDetails);
 userRoutes.get("/referral-details", referralData);
+userRoutes.get("/complaint-details", getComplaints);
 
 export default userRoutes;

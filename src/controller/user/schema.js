@@ -98,8 +98,8 @@ export const userSchema = {
   contacts: [],
   triggerMessageTo: ["ADMIN", "SUPERADMIN"],
   complaint: {
-    updateDetailsRequest: [],
-    issueWithTransactions: [],
-    generalComplaint: [],
+    detailsUpdateIssue: [],
+    transactionIssue: [],
+    raiseAComplaintIssue: [],
   },
 };
