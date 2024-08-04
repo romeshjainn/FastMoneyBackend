@@ -17,7 +17,7 @@ app.get("/", (req, res) => {
 });
 
 // Routes
-app.use("/api", userRoutes); // Mount user routes under /api/users
+app.use("/api/user", userRoutes); // Mount user routes under /api/users
 
 // Start the server
 app.listen(port, () => {

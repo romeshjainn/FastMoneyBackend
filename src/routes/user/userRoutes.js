@@ -32,7 +32,6 @@ userRoutes.post("/signup", handleUserSignup);
 userRoutes.post("/send-otp", sendVerificationMail);
 userRoutes.post("/verify-otp", verifyOTP);
 userRoutes.get("/mail", sendVerificationMail);
-userRoutes.get("/user-details", userDetails);
 userRoutes.post("/transfer-balance", handleBalanceTransferToOthers);
 userRoutes.post("/contacts-suggestions", sendMoneyPeopleSuggestions);
 userRoutes.post("/save-contacts", saveContacts);
@@ -42,11 +41,12 @@ userRoutes.post("/verify-pan-number", verifyPanNumber);
 userRoutes.post("/save-credit-card", saveCreditCardDetails);
 userRoutes.post("/save-bank-details", saveBankDetails);
 userRoutes.post("/raise-complaint", raiseAComplaint);
-
+// console.firebase.google.com/u/5/project/fastpay-8f8a8/firestore
 // Get Apis
-userRoutes.get("/homepage-data", homepageData);
+https: userRoutes.get("/homepage-data", homepageData);
 userRoutes.get("/transaction-details", tansactionDetails);
 userRoutes.get("/account-details", accountDetails);
+userRoutes.get("/user-details", userDetails); // user 
 userRoutes.get("/bank-details", bankDetails);
 userRoutes.get("/credit-details", creditCardDetails);
 userRoutes.get("/reward-details", rewardDetails);

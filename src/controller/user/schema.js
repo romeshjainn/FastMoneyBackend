@@ -3,7 +3,7 @@ export const userSchema = {
     id: "",
     name: "",
     number: "",
-    walletPin: "",
+    walletPin: null,
     referID: "",
     email: "",
     pan: "",
@@ -27,42 +27,17 @@ export const userSchema = {
       postal_code: "",
       country: "",
     },
+    isAadharVerified: false,
+    isPanVerified: false,
   },
-  referredTeam: [
-    {
-      team_member_id: "",
-      team_member_name: "",
-    },
-  ],
+  referredTeam: [],
   referredBy: {
     referrerId: "",
     referrerName: "",
   },
-  sessionHistory: [
-    {
-      date: "",
-      start_time: "",
-      end_time: "",
-      time_spent: "",
-    },
-  ],
-  bankDetails: [
-    {
-      bank_name: "",
-      account_number: "",
-      ifsc_code: "",
-      branch: "",
-    },
-  ],
-  creditCards: [
-    {
-      card_type: "",
-      card_number: "",
-      expiry_date: "",
-      name_on_card: "",
-      cvv: "",
-    },
-  ],
+  sessionHistory: [],
+  bankDetails: [],
+  creditCards: [],
   wallet: {
     balance: 100,
     currency_symbol: "",
@@ -71,26 +46,8 @@ export const userSchema = {
     total_rewards: "",
     currency_symbol: "",
   },
-  rewardsHistory: [
-    {
-      reward_id: "",
-      reward_name: "",
-      reward_amount: "",
-      date_earned: "",
-    },
-  ],
-  transactionHistory: [
-    {
-      toName: "",
-      transaction_id: "",
-      transaction_amount: "",
-      transaction_date: "",
-      transaction_time: "",
-      transaction_type: "",
-      toNumber: "",
-      description: "",
-    },
-  ],
+  rewardsHistory: [],
+  transactionHistory: [],
   aadharData: {},
   userSettings: {
     language_preference: "",
@@ -103,3 +60,109 @@ export const userSchema = {
     raiseAComplaintIssue: [],
   },
 };
+
+// export const userSchema = {
+//   userDetails: {
+//     id: "",
+//     name: "",
+//     number: "",
+//     walletPin: "",
+//     referID: "",
+//     email: "",
+//     pan: "",
+//     aadhar: "",
+//     emp_type: "",
+//     job_title: "",
+//     company_name: "",
+//     credit_score: 0,
+//     date_of_birth: "",
+//     gender: "",
+//     annual_income: 0,
+//     profile_picture: "",
+//     verification_status: "",
+//     tempAddress: "",
+//     joining_date: "",
+//     joining_time: "",
+//     address: {
+//       street: "",
+//       city: "",
+//       state: "",
+//       postal_code: "",
+//       country: "",
+//     },
+//   },
+//   referredTeam: [
+//     {
+//       team_member_id: "",
+//       team_member_name: "",
+//     },
+//   ],
+//   referredBy: {
+//     referrerId: "",
+//     referrerName: "",
+//   },
+//   sessionHistory: [
+//     {
+//       date: "",
+//       start_time: "",
+//       end_time: "",
+//       time_spent: "",
+//     },
+//   ],
+//   bankDetails: [
+//     {
+//       bank_name: "",
+//       account_number: "",
+//       ifsc_code: "",
+//       branch: "",
+//     },
+//   ],
+//   creditCards: [
+//     {
+//       card_type: "",
+//       card_number: "",
+//       expiry_date: "",
+//       name_on_card: "",
+//       cvv: "",
+//     },
+//   ],
+//   wallet: {
+//     balance: 100,
+//     currency_symbol: "",
+//   },
+//   rewards: {
+//     total_rewards: "",
+//     currency_symbol: "",
+//   },
+//   rewardsHistory: [
+//     {
+//       reward_id: "",
+//       reward_name: "",
+//       reward_amount: "",
+//       date_earned: "",
+//     },
+//   ],
+//   transactionHistory: [
+//     {
+//       toName: "",
+//       transaction_id: "",
+//       transaction_amount: "",
+//       transaction_date: "",
+//       transaction_time: "",
+//       transaction_type: "",
+//       toNumber: "",
+//       description: "",
+//     },
+//   ],
+//   aadharData: {},
+//   userSettings: {
+//     language_preference: "",
+//   },
+//   contacts: [],
+//   triggerMessageTo: ["ADMIN", "SUPERADMIN"],
+//   complaint: {
+//     detailsUpdateIssue: [],
+//     transactionIssue: [],
+//     raiseAComplaintIssue: [],
+//   },
+// };

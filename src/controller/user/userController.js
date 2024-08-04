@@ -264,7 +264,7 @@ export const userDetails = async (req, res) => {
     console.log(user?.userDetails);
 
     const userDetails = {
-      name: user?.[0]?.userDetails?.name || "",
+      name: user?.[0]?.aadharData?.name || "",
       number: user?.[0]?.userDetails?.number || "",
       email: user?.[0]?.userDetails?.email || "",
       panNumber: user?.[0]?.userDetails?.pan || "",
@@ -429,14 +429,24 @@ export const createUser = async (req, res) => {
     const userExist = allUsers.filter(
       (user) => String(user.userDetails.number) === String(number)
     );
+    console.log(userExist, "userExist");
 
-    if (userExist.length > 0) {
+    if (
+      userExist.length > 0 &&
+      userExist[0]?.isAadharVerified &&
+      userExist[0]?.isPanVerified &&
+      userExist[0]?.tempAddress.length > 0 &&
+      userExist[0]?.emp_type.length > 0 &&
+      userExist[0]?.annual_income.length > 0 &&
+      !userExist[0]?.walletPin
+    ) {
       console.log({
         userExist: true,
         navigationPath: "/homepage",
         message: "User Exist",
         token: userExist[0].userDetails.id,
       });
+
       return res.status(400).send({
         userExist: true,
         navigationPath: "/homepage",
@@ -656,11 +666,13 @@ export const saveContacts = async (req, res) => {
 
     const userDoc = querySnapshot.docs[0];
     const userDocRef = doc(db, "users", userDoc.id);
+    console.log(userDocRef);
 
     await updateDoc(userDocRef, {
       contacts: arrayUnion(...contacts),
+      // contacts: contacts,
     });
-
+    console.log("Contacts Updated Successfully");
     res.status(200).send({ message: "Contacts updated successfully" });
   } catch (error) {
     console.error("Error adding contacts:", error);
@@ -825,6 +837,7 @@ export const verifyAadharCard = async (req, res) => {
 
       await updateDoc(userDocRef, {
         "userDetails.referID": referID,
+        "userDetails.isAadharVerified": true,
         aadharData: {
           name: data.data.full_name,
           dob: data.data.dob,
@@ -886,7 +899,7 @@ export const saveCreditCardDetails = async (req, res) => {
 };
 
 export const verifyPanNumber = async (req, res) => {
-  const { panCardNumber } = req.body;
+  const { panCardNumber, id } = req.body;
   try {
     const response = await fetch("https://api.quickekyc.com/api/v1/pan/pan", {
       method: "POST",
@@ -913,6 +926,20 @@ export const verifyPanNumber = async (req, res) => {
     if (data.status === "error") {
       res.json({ success: false, nameOnPanCard: "", status: "failed" });
     } else {
+      const usersCollection = collection(db, "users");
+      const q = query(usersCollection, where("userDetails.id", "==", id));
+      const querySnapshot = await getDocs(q);
+
+      if (querySnapshot.empty) {
+        return res.status(404).send({ Error: "User not found" });
+      }
+      const userDoc = querySnapshot.docs[0];
+      const userDocRef = doc(db, "users", userDoc.id);
+
+      await updateDoc(userDocRef, {
+        "userDetails.isPanVerified": true,
+      });
+
       const nameOnPanCard = data.data.full_name;
       const category = data.data.person;
       res.json({ success: true, nameOnPanCard, category });
