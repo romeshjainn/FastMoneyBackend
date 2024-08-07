@@ -215,9 +215,10 @@ export const creditCardDetails = async (req, res) => {
       (user) => String(user.userDetails.id) === String(id)
     )[0];
 
-    const creditCardDetails = userRecord.creditCardDetails;
+    const creditCards = userRecord.creditCards;
+    console.log(creditCards, "creditCards");
 
-    res.send({ creditCardDetails });
+    res.send({ creditCards });
   } catch (error) {
     console.log(error);
     res.status(500).send({ error: "An error occurred" });

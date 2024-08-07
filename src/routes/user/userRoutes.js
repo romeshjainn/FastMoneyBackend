@@ -46,7 +46,7 @@ userRoutes.post("/raise-complaint", raiseAComplaint);
 https: userRoutes.get("/homepage-data", homepageData);
 userRoutes.get("/transaction-details", tansactionDetails);
 userRoutes.get("/account-details", accountDetails);
-userRoutes.get("/user-details", userDetails); // user 
+userRoutes.get("/user-details", userDetails); // user
 userRoutes.get("/bank-details", bankDetails);
 userRoutes.get("/credit-details", creditCardDetails);
 userRoutes.get("/reward-details", rewardDetails);
